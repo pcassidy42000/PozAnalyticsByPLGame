@@ -9,19 +9,29 @@ function client() {
 export async function createLoginSession() {
   const bb = client();
   const projectId = process.env.BROWSERBASE_PROJECT_ID;
+  const contextId = process.env.BROWSERBASE_CONTEXT_ID;
   if (!projectId) throw new Error("BROWSERBASE_PROJECT_ID is not configured");
-
-  let contextId = process.env.BROWSERBASE_CONTEXT_ID;
-  if (!contextId) {
-    const ctx = await bb.contexts.create({ projectId });
-    contextId = ctx.id;
-  }
+  if (!contextId) throw new Error("BROWSERBASE_CONTEXT_ID is not configured");
 
   const session = await bb.sessions.create({
     projectId,
     keepAlive: true,
     browserSettings: { context: { id: contextId, persist: true } }
   });
+
+  // Preload X/Grok in the remote browser so the live view is immediately useful.
+  const browser = await chromium.connectOverCDP(session.connectUrl);
+  try {
+    const context = browser.contexts()[0];
+    const page = context.pages()[0] || await context.newPage();
+    await page.goto("https://x.com/i/grok", {
+      waitUntil: "domcontentloaded",
+      timeout: 30000
+    });
+  } finally {
+    // Disconnect Playwright only; keep the Browserbase session alive for the user.
+    await browser.close();
+  }
 
   const live = await bb.sessions.debug(session.id);
   return { sessionId: session.id, contextId, liveViewUrl: live.debuggerFullscreenUrl };
