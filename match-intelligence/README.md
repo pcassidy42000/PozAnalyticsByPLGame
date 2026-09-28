@@ -1,21 +1,23 @@
 # Arsenal Match Intelligence
 
-Hosted browser-only app for Arsenal MEN'S FIRST TEAM match intelligence.
+Hosted Arsenal MEN'S FIRST TEAM match-intelligence site.
 
-## Stack
-- GitHub source
-- Vercel frontend/API
-- Browserbase persistent browser context for X/Grok
-- Supabase tables already created in the existing `meeting-intelligence` project with `arsenal_` prefixes
+## Current MVP workflow
 
-## Required Vercel environment variables
-- BROWSERBASE_API_KEY
-- BROWSERBASE_PROJECT_ID
-- BROWSERBASE_CONTEXT_ID (after first login context is created)
+The remote-browser login path has been temporarily removed because X authentication inside a hosted browser proved too brittle.
+
+Current flow:
+1. Choose Preview / Live / Post-match / Managers / Pundits.
+2. Generate the exact Grok prompt in the site.
+3. Open Grok in the user's normal authenticated X session.
+4. Paste the generated prompt into Grok.
+5. Paste Grok's response back into the site.
+6. The response is rendered on the match page.
+
+## Scope
+Hard exclude Arsenal Women / Arsenal WFC, even when a social post simply says "Arsenal".
+Exclude academy/youth unless directly relevant to the men's first-team match.
 
 ## Worked example
 Brighton & Hove Albion 3–0 Arsenal
 Premier League · 19 Sep 2026 · Amex Stadium
-
-## Scope
-Hard exclude Arsenal Women / Arsenal WFC, even when a post simply says "Arsenal".
