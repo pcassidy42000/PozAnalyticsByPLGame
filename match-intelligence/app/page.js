@@ -9,55 +9,104 @@ export default function Page(){
   const [flow,setFlow]=useState("post");
   const [opponent,setOpponent]=useState("Brighton & Hove Albion");
   const [minute,setMinute]=useState("");
-  const [output,setOutput]=useState("Worked example: Brighton 3–0 Arsenal, 19 Sep 2026. Run Post-match, Managers or Pundits once the X/Grok browser is connected.");
-  const [busy,setBusy]=useState(false);
+  const [prompt,setPrompt]=useState("");
+  const [raw,setRaw]=useState("");
+  const [report,setReport]=useState("");
   const [status,setStatus]=useState("Men’s first team only");
-  const [loginUrl,setLoginUrl]=useState("");
+  const [busy,setBusy]=useState(false);
 
-  async function openLogin(){
-    setStatus("Starting secure cloud browser…");
-    const r=await fetch("/api/login-session",{method:"POST"});
-    const j=await r.json();
-    if(j.error){setStatus(j.error);return;}
-    setLoginUrl(j.liveViewUrl);
-    setStatus("Open the live browser and log into X once. Keep the context ID in Vercel.");
+  async function generatePrompt(){
+    setBusy(true);
+    setStatus("Generating Grok prompt…");
+    try{
+      const r=await fetch("/api/prompt",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({workflow:flow,opponent,minute})});
+      const j=await r.json();
+      if(j.error) throw new Error(j.error);
+      setPrompt(j.prompt);
+      setStatus("Prompt ready — copy it into Grok in your normal X session.");
+    }catch(e){ setStatus("Error: "+e.message); }
+    finally{ setBusy(false); }
   }
 
-  async function run(){
-    setBusy(true); setOutput("Grok is researching X…");
-    const r=await fetch("/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({workflow:flow,opponent,minute})});
-    const j=await r.json();
-    setOutput(j.error ? "Error: "+j.error : j.output);
-    setStatus(j.error ? "Run failed" : "Updated "+new Date(j.capturedAt).toLocaleString());
-    setBusy(false);
+  async function copyPrompt(){
+    try{
+      await navigator.clipboard.writeText(prompt);
+      setStatus("Prompt copied. Paste it into Grok in X.");
+    }catch{
+      setStatus("Clipboard blocked — select the prompt text manually and copy.");
+    }
+  }
+
+  function useResponse(){
+    if(!raw.trim()){
+      setStatus("Paste Grok's answer first.");
+      return;
+    }
+    setReport(raw.trim());
+    setStatus("Grok response added to the match page.");
   }
 
   return <main className="wrap">
     <h2>Arsenal Match Intelligence</h2>
     <div className="muted">Arsenal men’s first team only. Arsenal Women / WFC content is explicitly excluded.</div>
+
     <section className="hero">
       <h1>Arsenal vs <input value={opponent} onChange={e=>setOpponent(e.target.value)} /></h1>
       <div className="row">
-        <button onClick={openLogin}>Open X/Grok login browser</button>
-        <button className="primary" onClick={run} disabled={busy}>{busy?"Working…":"Run "+LABEL[flow]}</button>
+        <button className="primary" onClick={generatePrompt} disabled={busy}>{busy?"Working…":"Generate "+LABEL[flow]+" Grok prompt"}</button>
         {flow==="live" && <input placeholder="Minute" value={minute} onChange={e=>setMinute(e.target.value)} style={{width:120}}/>}
       </div>
-      {loginUrl && <p><a href={loginUrl} target="_blank">Open secure Browserbase live session</a></p>}
       <p className="muted">{status}</p>
     </section>
 
-    <div className="tabs">{FLOWS.map(f=><button key={f} className={"tab "+(flow===f?"active":"")} onClick={()=>setFlow(f)}>{LABEL[f]}</button>)}</div>
+    <div className="tabs">
+      {FLOWS.map(f=><button key={f} className={"tab "+(flow===f?"active":"")} onClick={()=>setFlow(f)}>{LABEL[f]}</button>)}
+    </div>
 
     <div className="grid">
-      <section className="card">
-        <h2>{LABEL[flow]}</h2>
-        <div className="output">{output}</div>
+      <section>
+        <div className="card">
+          <h3>1. Grok prompt</h3>
+          <p className="muted">Generate this here, then run it in your normal authenticated Grok-in-X session.</p>
+          <textarea
+            value={prompt}
+            onChange={e=>setPrompt(e.target.value)}
+            placeholder="Your Grok prompt will appear here."
+            style={{width:"100%",minHeight:260,background:"#0f151d",color:"#fff",border:"1px solid #283342",borderRadius:9,padding:12,fontSize:14,lineHeight:1.45}}
+          />
+          <div className="row" style={{marginTop:10}}>
+            <button onClick={copyPrompt} disabled={!prompt}>Copy prompt</button>
+            <a href="https://x.com/i/grok" target="_blank" rel="noreferrer"><button>Open Grok in X</button></a>
+          </div>
+        </div>
+
+        <div className="card" style={{marginTop:14}}>
+          <h3>2. Paste Grok response</h3>
+          <textarea
+            value={raw}
+            onChange={e=>setRaw(e.target.value)}
+            placeholder="Paste Grok's response here."
+            style={{width:"100%",minHeight:260,background:"#0f151d",color:"#fff",border:"1px solid #283342",borderRadius:9,padding:12,fontSize:14,lineHeight:1.45}}
+          />
+          <div className="row" style={{marginTop:10}}>
+            <button className="primary" onClick={useResponse}>Use this response</button>
+            <button onClick={()=>setRaw("")}>Clear</button>
+          </div>
+        </div>
+
+        <div className="card" style={{marginTop:14}}>
+          <h2>{LABEL[flow]} report</h2>
+          <div className="output">{report || "No Grok response added yet."}</div>
+        </div>
       </section>
+
       <aside className="card">
         <h3>Curated X accounts</h3>
         <div>{SOURCE_HANDLES.map(h=><span className="handle" key={h}>{h}</span>)}</div>
         <h3>Worked example</h3>
         <p className="muted">Brighton & Hove Albion 3–0 Arsenal<br/>Premier League · 19 Sep 2026 · Amex Stadium</p>
+        <h3>Temporary workflow</h3>
+        <p className="muted">Website builds the exact prompt → you run it in normal Grok/X → paste the answer back here. No remote-login nonsense.</p>
       </aside>
     </div>
   </main>
